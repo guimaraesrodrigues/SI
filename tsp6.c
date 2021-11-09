@@ -1,0 +1,1103 @@
+#include<stdio.h>
+#include<stdlib.h>
+#include<math.h>
+#include<time.h>
+#include<unistd.h>
+#include<float.h>
+#include<string.h>
+
+#define MAX_GEN 500
+
+//Estrutura Node:
+//armazena o nó de um grafo
+//utilizada para:
+//	- implementar o grafo por listas de adjacências
+//	- armazenar os pontos de entrada em um vetor do tipo Node
+//	- armazenar os pontos de entrada em uma heap de mínimo
+//onde é utilizada:
+//	- função prim()
+typedef struct Node{
+	struct Node* prev;
+	struct Node* next;
+	int x;
+	int y;
+	int id;
+	int parentId;
+	float weight;
+	int visited;
+	int accessible;
+	float gScore;
+}Node;
+
+typedef struct tuple{
+	float value;
+	int id;
+}tuple;
+
+
+void merge(tuple* arr, int p, int q, int r){
+	int m = q - p + 1;
+	int n = r - q;
+	tuple* L = (tuple*)malloc((m+1)*sizeof(tuple));
+	tuple* R = (tuple*)malloc((n+1)*sizeof(tuple));
+	int i,j,k;
+
+	for(i=0;i<m;i++)
+	{
+		L[i] = arr[p+i];
+	}
+	for(j=0;j<n;j++)
+	{
+		R[j] = arr[q+j+1];
+	}
+	i = j = 0;
+
+	for(k=p;k<=r;k++)
+	{
+		if(i<m)
+		{
+				if(L[i].value <= R[j].value)
+				{
+					arr[k] = L[i];
+					i++;
+					continue;
+				}
+				else if(j==n)
+				{
+					arr[k] = L[i];
+					i++;
+					continue;
+				}
+		}
+
+		if(j<n)
+		{
+				if(R[j].value <= L[i].value)
+				{
+					arr[k] = R[j];
+					j++;
+					continue;
+				}
+				else if(i==m)
+				{
+					arr[k] = R[j];
+					j++;
+					continue;
+				}
+		}
+	}
+	free(L);
+	free(R);
+	
+}
+//recebe um vetor do tipo int e o ordena
+//"r" deve ser igual ao índice da última posição do vetor
+void mergeSort(tuple* arr, int p, int r){
+	//printf("insideMergesort\n");
+	if(p<r)
+	{
+		int q = floor((p+r)/2);
+		mergeSort(arr,p,q);
+		mergeSort(arr,q+1,r);
+		merge(arr,p,q,r);
+	}
+}
+
+//Estrutura Graph:
+//grafo representado por matriz de adjacências
+typedef struct Graph{
+	int size;
+	float* adjMatrix;
+	Node** adjList;
+}Graph;
+
+Node* createNode(int x,int y,int id){
+	Node* newNode = (Node*) malloc(sizeof(Node));
+	newNode->x = x;
+	newNode->y = y;
+	newNode->next = NULL;
+	newNode->prev = NULL;
+	newNode->id = id;
+	newNode->visited = 0;
+	newNode->weight = -1;
+	newNode->parentId = -1;
+	newNode->accessible = -1;
+	return newNode;
+}
+
+Node* copyNode(Node n){
+	Node* newNode = (Node*) malloc(sizeof(Node));
+	newNode->x = n.x;
+	newNode->y = n.y;
+	newNode->next = n.next;
+	newNode->prev = n.prev;
+	newNode->id = n.id;
+	newNode->visited = n.visited;
+	newNode->weight = n.weight;
+	newNode->parentId = n.parentId;
+	newNode->accessible = n.accessible;
+	return newNode;
+}
+
+float calcDist(int x1, int y1, int x2, int y2)
+{
+	return(sqrt(pow(x1-x2,2) + pow(y1-y2,2)));
+}
+
+float calcDistNodes(Node n1, Node n2){
+	return(sqrt((n1.x-n2.x)*(n1.x-n2.x) + (n1.y-n2.y)*(n1.y-n2.y)));
+}
+
+//mapa de índices da heap
+int* heapIndexMap;
+//função que mantém a propriedade de uma heap de mínimo
+void minHeapify(Node* A,int i, int size){
+	int l = 2*i+1;
+	int r = 2*i+2;
+	int smallest;
+	if(l<=size-1 && A[l].weight<A[i].weight){
+		smallest = l;
+	}
+	else{
+		smallest = i;
+	}
+	if(r<=size-1 && A[r].weight<A[smallest].weight){
+		smallest = r;
+	}
+	if(smallest != i){
+		heapIndexMap[A[i].id] = smallest;
+		heapIndexMap[A[smallest].id] = i;
+		Node aux = A[i];
+		A[i] = A[smallest];
+		A[smallest] = aux;
+		minHeapify(A,smallest,size);
+	}
+}
+
+//função que cria uma heap de mínimo
+void buildMinHeap(Node* array,int size){
+	int i;
+	for(i=floor(size/2)-1;i>=0;i--){
+		minHeapify(array,i,size);
+	}
+}
+
+//função que extrai o menor elemento de uma heap de mínimo
+Node heapExtractMin(Node* A, int heapsize){
+	if(heapsize<1){
+		printf("Heap Underflow\n");
+		exit(0);
+	}
+	else{
+		Node min = A[0];
+		heapsize--;
+		heapIndexMap[A[heapsize].id] = 0;
+		memcpy(&A[0],&A[heapsize],sizeof(Node));
+		A = (Node*)realloc(A,(heapsize)*sizeof(Node));
+		minHeapify(A,0,heapsize);
+		return min;
+	}
+}
+
+//função que decrementa o valor de um elemento na heap de mínimo
+void heapDecreaseKey(Node* A,int i,float key){
+	if(key > A[i].weight){
+		printf("New key is greater than current key\n");
+		return;
+	}
+	A[i].weight = key;
+	Node aux;
+	while(i>0 && A[(int)((i-1)/2)].weight>A[i].weight){
+		int parent = floor((i-1)/2);
+		heapIndexMap[A[parent].id] = i;
+		heapIndexMap[A[i].id] = parent;
+		aux = A[i];
+		A[i] = A[parent];
+		A[parent] = aux;
+		i = parent;
+	}
+}
+
+//função que insere um elemento na heap de mínimo
+void minHeapInsert(Node* A,int heapsize,float key){
+	A = (Node*)realloc(A,(heapsize+1)*sizeof(Node));
+	A[heapsize].weight = FLT_MAX;
+	heapDecreaseKey(A,heapsize,key);
+}
+
+//função que insere um Node na heap de mínimo
+void minHeapInsertNode(Node* A,int heapsize,Node new){
+	A = (Node*)realloc(A,(heapsize+1)*sizeof(Node));
+	A[heapsize] = new;
+	A[heapsize].weight = FLT_MAX;
+	heapDecreaseKey(A,heapsize,new.weight);
+}
+
+
+//função que inicializa o grafo por matriz de ajacências
+//recebe um vetor do tipo Node como parâmetro
+Graph initializeGraphMatrix(Node* vertex, int size){
+	int i,j,x,y;
+	Graph graph;
+	graph.adjMatrix = (float*) malloc(size*size*sizeof(float));
+
+	//preenche a matrix triangular superior que representa o grafo
+	//um dado elemento Aij da matriz corresponde à distância euclidiana entre os nós i e j
+	for(i=1;i<size;i++)
+	{	
+		x = vertex[i-1].x;
+		y = vertex[i-1].y;
+		for(j=i;j<size;j++)
+		{	
+			graph.adjMatrix[i*size+j] = calcDist(x,y,vertex[j].x,vertex[j].y);
+		}
+	}
+	return graph;
+}
+//função que inicializa o grafo por listas de adjacências
+//recebe um vetor do tipo Node como parâmetro
+Graph* initializeGraphAdjList(Node* vertex, int size){
+	int i,j;
+	Graph* graph = (Graph*)malloc(sizeof(Graph));
+	graph->adjList = (Node**)malloc(size*sizeof(Node*));
+	for(i=0;i<size;i++)
+	{
+		graph->adjList[i]=NULL;
+		for(j=0;j<size;j++)
+		{
+			if(j==i)
+			{
+				continue;
+			}
+
+			Node* currentNode = createNode(vertex[j].x,vertex[j].y,vertex[j].id);
+
+			queue_append((queue_t**)&graph->adjList[i], (queue_t*)currentNode);
+		}
+	}
+	return graph;
+}
+
+Graph* createGrid(Node* vertex, int size, int width){
+	int i,j;
+	
+	Graph* graph = (Graph*)malloc(sizeof(Graph));
+	graph->size = size;
+	graph->adjList = (Node**)malloc(size*sizeof(Node*));
+	j = 0;
+	for(i=0;i<size;i++)
+	{	
+		graph->adjList[i]=NULL;
+		if(vertex[i].accessible==0){
+			if(i%width==0 && i>0)
+			{
+				j++;
+			}
+			continue;
+		}
+		
+		if(i%width>0){
+			if(vertex[i-1].accessible==1){
+				Node* currentNode = createNode(vertex[i-1].x,vertex[i-1].y,vertex[i-1].id);
+				currentNode->accessible = 1;
+				currentNode->accessible = 1;
+				queue_append((queue_t**)&graph->adjList[i], (queue_t*)currentNode);
+			}
+		}
+
+		if((i+1)%width > 0){
+			if(vertex[i+1].accessible==1){
+				Node* currentNode = createNode(vertex[i+1].x,vertex[i+1].y,vertex[i+1].id);
+				currentNode->accessible = 1;
+				queue_append((queue_t**)&graph->adjList[i], (queue_t*)currentNode);
+			}
+		}
+
+		if(i+width <= size-1){
+			if(vertex[i+width].accessible==1){
+				Node*  currentNode = createNode(vertex[i+width].x,vertex[i+width].y,vertex[i+width].id);
+				currentNode->accessible = 1;
+				queue_append((queue_t**)&graph->adjList[i], (queue_t*)currentNode);
+			}
+		}
+		
+		if(i-width >= 0){
+			if(vertex[i-width].accessible==1){
+				Node*  currentNode = createNode(vertex[i-width].x,vertex[i-width].y,vertex[i-width].id);
+				currentNode->accessible = 1;
+				queue_append((queue_t**)&graph->adjList[i], (queue_t*)currentNode);
+			}
+		}
+
+
+		if(i%width==0){
+			j++;
+		}
+
+	}
+	return graph;
+
+}
+void crossOver(Node* o1, Node* o2, int n, int p, int q){
+	int i,j;
+	Node* aux;
+	Node current;
+	Node* elem;
+	Node* queue1 = NULL;
+	Node* queue2 = NULL;
+	int present;
+
+
+	for(i=q+1;i<n-1;i++){
+		Node* copy; 
+		copy = copyNode(o1[i]);
+		copy->next = NULL;
+		copy->prev = NULL;
+		queue_append((queue_t**)&queue1, (queue_t*)copy);
+		copy = copyNode(o2[i]);
+		copy->next = NULL;
+		copy->prev = NULL;
+		queue_append((queue_t**)&queue2, (queue_t*)copy);
+	}
+	for(i=1;i<=q;i++){
+		Node* copy; 
+		copy = copyNode(o1[i]);
+		copy->next = NULL;
+		copy->prev = NULL;
+		queue_append((queue_t**)&queue1, (queue_t*)copy);
+		copy = copyNode(o2[i]);
+		copy->next = NULL;
+		copy->prev = NULL;
+		queue_append((queue_t**)&queue2, (queue_t*)copy);
+	}
+
+	printf("\n");
+	printArray(o1,n);
+    printArray(o2,n);
+
+	queue_print ("Queue 1  ", (queue_t*) queue1, print_elem) ;
+	queue_print ("Queue 2  ", (queue_t*) queue2, print_elem) ;
+
+	for(i=q+1;i<n-1;i++){
+		aux = queue1;
+		elem = (Node*)queue_remove ((queue_t**) &queue1, (queue_t*)aux);
+		if(elem!=NULL){
+			present = 0;
+			for(j=p;j<=q;j++){
+				if(elem->x==o2[j].x && elem->y==o2[j].y){
+					present = 1;
+					i--;
+				}
+			}
+			if(!present){
+				o2[i] = *elem;
+				free(elem);
+			}
+		}
+	}
+	for(i=q+1;i<n-1;i++){
+		aux = queue2;
+		elem = (Node*)queue_remove ((queue_t**) &queue2, (queue_t*)aux);
+		if(elem!=NULL){
+			present = 0;
+			for(j=p;j<=q;j++){
+				if(elem->x==o1[j].x && elem->y==o1[j].y){
+					present = 1;
+					i--;
+				}
+			}
+			if(!present){
+				o1[i] = *elem;
+				free(elem);
+			}
+		}
+	}
+	printf("inside crossover after q+1 for\n");
+	for(i=1;i<p;i++){
+		aux = queue1;
+		elem = (Node*)queue_remove ((queue_t**) &queue1, (queue_t*)aux);
+		if(elem!=NULL){
+			present = 0;
+			for(j=p;j<=q;j++){
+				if(elem->x==o2[j].x && elem->y==o2[j].y){
+					present = 1;
+					i--;
+				}
+			}
+			if(!present){
+				o2[i] = *elem;
+				free(elem);
+			}
+		}
+		
+	}
+	for(i=1;i<p;i++){
+		aux = queue2;
+		elem = (Node*)queue_remove ((queue_t**) &queue2, (queue_t*)aux);
+		if(elem!=NULL){
+			present = 0;
+			for(j=p;j<=q;j++){
+				if(elem->x==o1[j].x && elem->y==o1[j].y){
+					present = 1;
+					i--;
+				}
+			}
+			if(!present){
+				o1[i] = *elem;
+				free(elem);
+			}
+		}
+	}
+	printf("\n");
+	printArray(o1,n);
+    printArray(o2,n);
+	printf("end of crossover\n");
+
+}
+
+void shuffleArray(Node* vertex, int n)
+{
+    int i,j;
+    Node currentNode;
+    //srand48(time(NULL));
+    for (i = n - 1; i > 0; i--) {
+        j = (int) (drand48()*(i+1));
+        currentNode = vertex[j];
+        vertex[j] = vertex[i];
+        vertex[i] = currentNode;
+    }
+}
+
+void mutate(Node* C, int p, int q){
+	int size = q-p+1;
+	Node* section = (Node*) malloc(size*(sizeof(Node)));
+	int i;
+	for(i=p;i<=q;i++){
+		section[i-p]=C[i];//copia a seção do vetor original a ser embaralhada
+	}
+	shuffleArray(section,size);
+	for(i=p;i<=q;i++){
+		C[i]=section[i-p];//atualiza a seção do vetor original para que correspnda a seção embaralhada
+	}
+	free(section);
+}
+
+//função que calcula o perímetro do circuito
+float fitness(Node* vertex, int size){
+	int i;
+	float f = 0;
+	for(i=1;i<size;i++){
+		f+=calcDistNodes(vertex[i],vertex[i-1]);//calcula a distância euclidiana entre
+												//vértices subsequentes da sequência
+	}
+	f+=calcDistNodes(vertex[0],vertex[size-1]);	//calcula a distância euclidiana entre
+												//o primeiro e o último nó
+	return f;
+}
+
+//size == número de USs
+//N == número de combinações de rotas inicial
+Node* geneticSolve(Node** C, int size, int N, int R, float pCross, float pMut){
+	tuple* totalFitness = (tuple*)malloc((N+R)*sizeof(tuple));
+	float* parentFitness = (float*)malloc(N*sizeof(float));
+	float* offspringFitness = malloc(R*sizeof(float));
+	float* probabilityArray = (float*)malloc(N*sizeof(float));
+	float totalParentFitness = 0;
+	int i,j;
+
+	Node** selected;
+	selected = malloc(R*sizeof(Node*));//aloca uma array de ponteiros com "R" rotas
+
+	for(i=0;i<R;i++){
+		selected[i] = malloc(size*sizeof(Node));
+	}
+
+	Node** best;
+	best = malloc(N*sizeof(Node*));//aloca uma array de ponteiros com "N" rotas
+
+	for(i=0;i<N;i++){
+		best[i] = malloc(size*sizeof(Node));
+	}
+	
+	printf("inside gs after allocation\n");
+
+	int gen = 0;
+	while(gen < MAX_GEN){
+		totalParentFitness = 0;
+		//avalia a fitness da população inicial	
+		for(i=0;i<N;i++){
+			parentFitness[i] = fitness(C[i],size);
+			printf("inside gs after fitness function\n");
+
+			totalParentFitness+=parentFitness[i];
+			printf("inside gs after fitness sum\n");
+
+		}
+		//avalia a probabilidade de seleção na roleta
+		for(i=0;i<N;i++){
+			probabilityArray[i] = parentFitness[i]/totalParentFitness;
+		}
+		printf("inside gs after probabilityArray\n");
+		
+		//roleta
+		for(i=0;i<R;i++){
+			j = 0;
+			float soma = probabilityArray[j];
+			float r = drand48();
+			while(soma < r){
+				j++;
+				soma+=probabilityArray[j];	
+			}
+			copyArray(C[j],selected[i],size);
+			printArray(selected[i],size);
+
+		}
+		printf("inside gs after roulette\n");
+		//escolha de pares e crossover
+		for(i=1;i<R;i+=2){
+			float r = drand48();
+			if(r>pCross){
+				int p = drand48()*(size-2)+1;
+				int q = drand48()*(size-2-p)+p;
+				printf("q1: %d\n",q);
+				if(q-p == 0){
+					q++;
+				}
+				if(q>=size-1){
+					q--;
+				}
+				printf("p: %d\n",p);
+				printf("q2: %d\n",q);
+				crossOver(selected[i],selected[i-1],size,p,q);	
+			}
+		}
+		printf("inside gs after crossovers\n");
+		//mutação por embaralhamento
+		for(i=0;i<R;i++){
+			float r = drand48();
+			if(r>pMut){
+				int p = drand48()*(size-2)+1;
+				int q = drand48()*(size-2-p)+p;
+				printf("q1: %d\n",q);
+				if(q-p == 0){
+					q++;
+				}
+				if(q>=size-1){
+					q--;
+				}
+				printf("p: %d\n",p);
+				printf("q2: %d\n",q);
+				printArray(selected[i],size);
+				mutate(selected[i],p,q);
+				printArray(selected[i],size);
+				printf("----\n");
+			}
+		}
+		printf("inside gs after mutation\n");
+		
+		for(i=0;i<R;i++){
+			offspringFitness[i] = fitness(selected[i],size);
+		}
+		printf("inside gs after offspringFitness\n");
+		for(i=0;i<(N+R);i++){
+			if(i<N){
+				totalFitness[i].value = parentFitness[i];
+				totalFitness[i].id = i;
+			}
+			else{
+				totalFitness[i].value = offspringFitness[i-N];
+				totalFitness[i].id = i;
+			}
+		}
+		printf("inside gs after totalFitness\n");
+		printArrayTuple(totalFitness,N+R);
+		mergeSort(totalFitness,0,N+R-1);
+		printf("inside gs after mergesort\n");
+		printArrayTuple(totalFitness,N+R);
+
+		//eugenia
+		for(i=0;i<N;i++){
+			if(totalFitness[i].id<N){
+				printf("before eugenics case 1\n");
+				copyArray(C[totalFitness[i].id],best[i],size);
+				printf("after eugenics case 1\n");
+
+			}
+			else{
+				printf("before eugenics case 2\n");
+				copyArray(selected[totalFitness[i].id-N],best[i],size);
+				printf("after eugenics case 2\n");
+			}
+		}
+		for(i=0;i<N;i++){
+			copyArray(best[i],C[i],size);
+		}
+		gen++;
+		printf("inside gs end of main loop\n");
+	}
+
+	free(parentFitness);
+	free(offspringFitness);
+	free(probabilityArray);
+	free(selected);
+	printArrayTuple(totalFitness,N+R);
+	printf("total fitness: %f\n",fitness(best[totalFitness[0].id],size));
+	return best[totalFitness[0].id];
+}
+
+//função que insere um nó em um grafo
+void insertNode(Graph* g, Node* n){
+	g->size+=1;
+	printf("g size:%d\n",g->size);
+	n->id = g->size;
+	g->adjList = (Node**)realloc(g->adjList,(g->size)*sizeof(Node*));
+	if(g->adjList==NULL){
+		printf("error\n");
+	}
+	printf("after realloc\n");
+	queue_append((queue_t**)&g->adjList[g->size-1], (queue_t*)n);
+}
+
+//função que adiciona um nó a uma lista de adjacências
+void insertAdjList(Graph* g, Node* n, int i){
+	queue_append((queue_t**)&g->adjList[i], (queue_t*)n);
+}
+
+
+
+
+//função que adiciona uma aresta ao grafo
+void insertEdge(Graph* g,Node* n1,Node* n2){
+	Node* newNode1 = malloc(sizeof(Node));
+	Node* newNode2 = malloc(sizeof(Node));
+	newNode1 = n1;
+	newNode2 = n2;
+	queue_append((queue_t**)&g->adjList[n1->id], (queue_t*)newNode2);
+	queue_append((queue_t**)&g->adjList[n2->id], (queue_t*)newNode1);
+}
+
+
+//fila que armazena o ciclo
+Node* cycle = NULL;
+//variável que armazena o custo total do ciclo
+float cycleCost = 0;
+
+void DFSVisit(Graph graph, Node* points, int u){
+	points[u].visited = 1;
+	Node* aux = graph.adjList[u];
+	if(aux!=NULL){
+		if(aux->visited == 0){
+			points[aux->id].parentId = u;
+			points[aux->id].visited = 1;
+			Node* v = createNode(aux->x,aux->y,aux->id);
+			queue_append((queue_t**)&cycle, (queue_t*)v);
+			cycleCost+=calcDistNodes(*(v->prev),*v);
+			DFSVisit(graph,points,v->id);
+		}
+		while(aux->next!= graph.adjList[u]){
+			aux = aux->next;
+			if(aux->visited == 0){
+				points[aux->id].parentId = u;
+				points[aux->id].visited = 1;
+				Node* v = createNode(aux->x,aux->y,aux->id);
+				queue_append((queue_t**)&cycle, (queue_t*)v);
+				cycleCost+=calcDistNodes(*(v->prev),*v);
+				DFSVisit(graph,points,v->id);
+			}
+		}
+	}
+
+}
+
+//função que realiza a busca em profundidade e preenche uma lista de nós
+void DFS(Graph graph, Node* points, int size){
+	int i;
+	for(i=0;i<size;i++){
+		points[i].visited =  0;
+	}
+	for(i=0;i<size;i++){
+		if(points[i].visited == 0){
+			Node* v = createNode(points[i].x,points[i].y,points[i].id);
+			queue_append((queue_t**)&cycle, (queue_t*)v);
+			DFSVisit(graph,points,i);
+		}
+	}
+	Node* v = createNode(points[0].x,points[0].y,points[0].id);
+	queue_append((queue_t**)&cycle, (queue_t*)v);
+	cycleCost+=calcDistNodes(*(v->prev),*v);
+}
+
+
+//função que gera a árvore geradora mínima
+Graph prim(Graph graph, Node* points, int size){
+	int i,j,k;
+	Node u;
+	Graph tree;
+	tree.size = size;
+	tree.adjList = (Node**)malloc(size*sizeof(Node*));
+	Node *heap = (Node*)malloc(size*sizeof(Node));
+	for(i=1;i<size;i++){
+		heapIndexMap[i] = points[i].id;
+		heap[i] = points[i];
+		heap[i].weight = FLT_MAX;
+		points[i].weight = FLT_MAX;
+		points[i].visited = 0;
+		tree.adjList[i]=NULL;
+	}
+	tree.adjList[0]=NULL;
+	heapIndexMap[0] = points[0].id;
+	heap[0] = points[0];
+	heap[0].weight = 0;
+	points[0].weight = 0;
+	buildMinHeap(heap,size);
+	for(i=size;i>0;i--)
+	{
+		u = heapExtractMin(heap,i);
+		points[u.id].visited = 1;
+
+		if(i<size)
+		{
+			Node* v = createNode(u.x,u.y,u.id);
+			v->weight = u.weight;
+			insertAdjList(&tree,v,u.parentId);
+		}
+
+		
+		
+		Node* aux = graph.adjList[u.id];
+
+		k=0;
+		//percorre a lista de adjacência do nó "u"
+		while(k<size-1)
+		{
+			float w = calcDistNodes(u,*aux);
+			if(points[aux->id].visited==0 && w<points[aux->id].weight)
+			{
+				//loop que encontra o índice do elemento
+				//da heap que será decrementado
+				for(j=0;j<size-1;j++)
+				{
+					if(heap[j].id==aux->id){
+						break;
+					}
+				}
+				heap[j].parentId = u.id;
+				heapDecreaseKey(heap,j,w);
+				points[aux->id].weight = w;
+				
+			}
+			aux = aux->next;
+			k++;	
+		}	
+	}
+	return tree;
+}
+
+float h(Graph* graph, Node* points, Node current, Node end, int parte)
+{
+	if (parte == 1)
+	{
+		//heuristica da parte 1
+	}
+	else if (parte == 2) {
+		//distância euclidiana
+		return sqrtf((current.x - end.x)*(current.x - end.x) + (current.y - end.y)*(current.y - end.y));
+	}
+	return -1;
+}
+
+float d(Node current, Node neighbor, int parte)
+{
+	if (parte == 1)
+	{
+		//retorna distância da parte 1
+	}
+	else if (parte == 2)
+	{
+		//retorna distância de manhatan
+		return sqrtf((current.x - neighbor.x)*(current.x - neighbor.x)) + sqrtf((current.y - neighbor.y)*(current.y - neighbor.y));
+	}
+	return -1;
+}
+
+int reconstruct_path(Node* points, Node current, int size, int* parentId, Node** path) {
+	*path = (Node*)malloc(size*sizeof(Node));
+	int actual_size = 0;
+	(*path)[actual_size++] = current;
+	Node next = current;
+	while (parentId[next.id] != -1)
+	{
+		next = points[parentId[next.id]];
+		(*path)[actual_size++] = next;
+	}
+	*path = (Node*)realloc(*path,actual_size*sizeof(Node));
+	free(parentId);
+	return actual_size;
+}
+
+int aStar(Graph* graph, Node* points, Node start, Node end, Node** path, int parte)
+{
+	int openSet_size = 1;
+	float* gScore = (float*)malloc(graph->size*sizeof(float));
+	float* fScore = (float*)malloc(graph->size*sizeof(float));
+	int* parentId = (int*)malloc(graph->size*sizeof(int));
+	Node *openSet = (Node*)malloc(openSet_size*sizeof(Node));
+	int i;
+	for (i = 0; i < graph->size; i++)
+	{
+		if (points[i].x == start.x && points[i].y == start.y) {
+			gScore[i] =0;
+			fScore[i] = h(graph, points, points[i], end, parte);
+			points[i].weight = fScore[i];
+			openSet[0] = points[i];
+		}
+		else {
+			gScore[i] = INFINITY;
+			fScore[i] = INFINITY;
+		}
+		parentId[i] = -1;
+	}
+
+	while(openSet_size != 0)
+	{
+		float minWeight = INFINITY;
+		int minWeightid = -1;
+		for (i = 0; i < openSet_size; i++)
+		{
+			if (openSet[i].weight < minWeight){
+				minWeight = openSet[i].weight;
+				minWeightid = i;
+			}
+		}
+		Node current = openSet[minWeightid];
+		for (i = minWeightid+1; i<openSet_size; i++)
+		{
+			openSet[i-1] = openSet[i];
+		}
+		openSet_size--;
+		openSet = (Node*)realloc(openSet,openSet_size*sizeof(Node));
+		if (current.x == end.x && current.y == end.y)
+		{
+			free(gScore);
+			free(fScore);
+			free(openSet);			
+			return reconstruct_path(points,current,graph->size, parentId, path);
+		}
+
+		Node* neighbor = graph->adjList[current.id];
+		if (neighbor != NULL)
+		{
+			neighbor=neighbor->prev;
+			do
+			{
+				neighbor=neighbor->next;
+				float tentative_score = gScore[current.id] + d(current, *neighbor, parte);
+				if (tentative_score < gScore[neighbor->id]) {
+					parentId[neighbor->id] = current.id;
+					gScore[neighbor->id] = tentative_score;
+					fScore[neighbor->id] = gScore[neighbor->id] + h(graph,points,*neighbor,end,parte);
+					
+					int neighborInSet = 0;
+					for (i = 0; i < openSet_size; i++)
+					{
+						if (openSet[i].id == neighbor->id) {
+							neighborInSet = 1;
+							break;
+						}
+					}
+					if (!neighborInSet)
+					{
+						neighbor->weight = fScore[neighbor->id];
+						openSet_size++;
+						openSet = (Node*)realloc(openSet,openSet_size*sizeof(Node));
+						openSet[openSet_size-1] = *neighbor;
+					}
+				}
+			}
+			while (neighbor->next != graph->adjList[current.id]);
+		}
+	}
+	free(gScore);
+	free(fScore);
+	free(parentId);
+	free(openSet);
+	return -1;
+}
+
+
+#define PARTE 2
+int main(){
+	clock_t start, end;
+	FILE *input;
+	if (PARTE == 2) {
+		input = fopen("input2.txt", "r");
+	}
+	else {
+		input = fopen("input1.txt", "r");
+	}
+	int n, width;
+	fscanf(input, "%d %d", &n, &width);
+	Node* points = (Node*) malloc(n*sizeof(Node));
+	int i = 0;
+	printf("n=%d width=%d\n",n,width);
+
+	Node start_point, end_point;
+	if (PARTE == 2)
+	{
+		fscanf(input, "%d %d", &start_point.x, &start_point.y);
+		fscanf(input, "%d %d", &end_point.x, &end_point.y);
+	}
+	printf("before input\n");
+    while (EOF != fscanf(input, "%d %d %d", &points[i].x, &points[i].y, &points[i].accessible))
+    {
+    	points[i].next = NULL;
+		points[i].prev = NULL;
+		points[i].id = i;
+        i++;
+    }
+	heapIndexMap = (int*)malloc(n*sizeof(int));
+    fclose(input);
+    printArray(points,n);
+	Graph* grid;
+	Node* R;
+	Node* path;
+	int path_size;
+	if (PARTE == 2) {
+		printf("after input\n");
+    	grid = createGrid(points,n,width);
+		path_size = aStar(grid,points,start_point,end_point,&path, PARTE);
+		if (path_size == -1) {
+			printf("Objetivo inalcancavel");
+		}
+		else {
+			printArray(path,path_size);
+		}
+	}
+	else {
+		Node** C;
+		C = malloc(10*sizeof(Node*));//aloca uma array de ponteiros com "R" rotas
+		srand48(time(NULL));
+		for(i=0;i<10;i++){
+			C[i] = malloc(n*sizeof(Node));
+			copyArray(points,C[i],n);
+			mutate(C[i],1,n-2);
+			printArray(C[i],n);
+		}
+
+		printf("after setup\n");
+		R = geneticSolve(C,n,10,10,0.2,0.1);
+		printArray(R,n);
+	}
+
+    if (PARTE == 1)
+	{
+		Node* o1 = malloc(8*sizeof(Node));
+		Node* o2 = malloc(8*sizeof(Node));
+
+		for(i=0;i<8;i++){
+			o1[i].visited=0;
+			o1[i].y=0;
+			o2[i].visited=0;
+			o2[i].y=0;
+			o1[i].id=i;
+			o2[i].id=i;
+		}
+
+		o1[0].x = 3;
+		o1[1].x = 4;
+		o1[2].x = 8;
+		o1[3].x = 2;
+		o1[4].x = 7;
+		o1[5].x = 1;
+		o1[6].x = 6;
+		o1[7].x = 5;
+
+		o2[0].x = 4;
+		o2[1].x = 2;
+		o2[2].x = 5;
+		o2[3].x = 1;
+		o2[4].x = 6;
+		o2[5].x = 8;
+		o2[6].x = 3;
+		o2[7].x = 7;
+
+
+		printArray(o1,8);
+		printArray(o2,8);
+
+		crossOver(o1,o2,8,3,5);
+
+		printArray(o1,8);
+		printArray(o2,8);
+	}
+
+    
+
+    FILE *output = fopen("cycle.txt", "w");
+
+    fclose(output);
+
+    output = fopen("tree2.txt", "w");
+	if (PARTE == 2)
+	{
+		for(i=path_size-1;i>0;i--)
+		{
+			Node aux = path[i-1];
+			fprintf(output, "%d %d\n",path[i].x,path[i].y);
+			fprintf(output, "%d %d\n\n",aux.x,aux.y);
+		}
+
+	}
+	else {
+    	for(i=1;i<n;i++){
+    		fprintf(output, "%d %d\n",R[i-1].x,R[i-1].y);
+    		fprintf(output, "%d %d\n",R[i].x,R[i].y);
+    		fprintf(output, "\n");
+    	}
+
+	}
+    fclose(output);
+	
+	if (PARTE == 2)
+	{
+		printf("Adicionar obstaculo? S/n\n");
+		char ans = getchar();
+		while (ans == 'S' || ans == 's') {
+			free(path);
+			int atual_x, atual_y, obs_x, obs_y;
+			printf("Posicao atual: X Y\n");
+			scanf("%d %d",&atual_x, &atual_y);
+			if (atual_x >= n/width || atual_y >= width) {
+				printf("Posicao invalida\n");
+				printf("Adicionar obstaculo? S/n\n");
+				char ans = getchar();
+				continue;
+			}
+
+			printf("Posicao obstaculo: X Y\n");
+			scanf("%d %d",&obs_x, &obs_y);
+			if (obs_x >= n/width || obs_y >= width) {
+				printf("Posicao invalida\n");
+				printf("Adicionar obstaculo? S/n\n");
+				char ans = getchar();
+				continue;
+			}
+
+			start_point = points[atual_x*width + atual_y];
+			points[obs_x*width + obs_y].accessible = 0;
+
+			grid = createGrid(points,n,width);
+			path_size = aStar(grid,points,start_point,end_point,&path, PARTE);
+			if (path_size == -1) {
+				printf("Objetivo inalcancavel");
+				break;
+			}
+			else {
+				printArray(path,path_size);
+				printf("Adicionar obstaculo? S/n\n");
+				getchar();
+				ans = getchar();
+			}
+		}
+	}
+}
