@@ -7,9 +7,8 @@ import numpy as np
 import pandas as pd
 
 from fitness import Fitness
-from unidade_saude import UnidadeSaude
 
-MAX_GEN = 250  # Quantidade máxima de gerações
+MAX_GEN = 20  # Quantidade máxima de gerações
 MUTATION_RATE = 0.01  # Porcentagem da taxa de mutação
 POP_SIZE = 100  # Tamanho da população (conjunto de rotas possíveis)
 ELITE_SIZE = 20  # Tamanho da elite  (melhores cromossomos para a próxima geração)
@@ -131,12 +130,12 @@ def get_next_generation(current_gen):
 
 def genetic_algorithm(initial_pop):
     population = initial_population(initial_pop)
-    print("Initial distance: " + str(1 / rank_routes(population)[0][1]))
+    print("Distancia inicial: " + str(1 / rank_routes(population)[0][1]))
 
     for i in range(0, MAX_GEN):
         population = get_next_generation(population)
 
-    print("Final distance: " + str(1 / rank_routes(population)[0][1]))
+    print("Distancia final: " + str(1 / rank_routes(population)[0][1]))
     best_route_index = rank_routes(population)[0][0]
     best_route = population[best_route_index]
     return best_route
@@ -152,8 +151,8 @@ def plot_genetic_algorithm(population):
         progress.append(1 / rank_routes(pop)[0][1])
 
     plt.plot(progress)
-    plt.ylabel('Distance')
-    plt.xlabel('Generation')
+    plt.ylabel('Distância')
+    plt.xlabel('Geração')
     plt.show()
 
 
@@ -162,17 +161,14 @@ def main():
     # salva na memoria
     f = open('unidades.json', )
     data = json.load(f)
-    print(data)
 
-    us_list = []
+    best_route = genetic_algorithm(data)
 
-    for i in range(0, 25):
-        us_list.append(UnidadeSaude(x=int(random.random() * 200), y=int(random.random() * 200)))
+    print("melhor rota: ")
+    for index in range(len(best_route)):
+        print(best_route[index]['us_name'])
 
-    # best_route = genetic_algorithm(us_list)
-    # print("us_list: ", us_list)
-    # print("best route: ", best_route)
-    # plot_genetic_algorithm(us_list)
+    plot_genetic_algorithm(data)
 
 
 if __name__ == '__main__':

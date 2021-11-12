@@ -1,6 +1,7 @@
 [
   {
-    "us_name": "PB",
+    "us_id": "PB",
+    "us_name": "PAVILHÃO DE EVENTOS DO PARQUE BARIGUI",
     "distances": {
       "PB": 0,
       "VD": "10,7",
@@ -15,7 +16,8 @@
     }
   },
   {
-    "us_name": "VD",
+    "us_id": "VD",
+    "us_name": "US VILA DIANA",
     "distances": {
       "PB": "10,7",
       "VD": 0,
@@ -30,7 +32,8 @@
     }
   },
   {
-    "us_name": "BP",
+    "us_id": "BP",
+    "us_name": "US BOM PASTOR",
     "distances": {
       "PB": "5,1",
       "VD": "7,2",
@@ -45,7 +48,8 @@
     }
   },
   {
-    "us_name": "SQ",
+    "us_id": "SQ",
+    "us_name": "US SANTA QUITÉRIA I",
     "distances": {
       "PB": "6,3",
       "VD": "15,2",
@@ -60,7 +64,8 @@
     }
   },
   {
-    "us_name": "FL",
+    "us_id": "FL",
+    "us_name": "US FANNY-LINDOIA",
     "distances": {
       "PB": "9,9",
       "VD": "15",
@@ -75,7 +80,8 @@
     }
   },
   {
-    "us_name": "WM",
+    "us_id": "WM",
+    "us_name": "US WALDEMAR MONASTIER",
     "distances": {
       "PB": "15,7",
       "VD": "17,9",
@@ -90,7 +96,8 @@
     }
   },
   {
-    "us_name": "CA",
+    "us_id": "CA",
+    "us_name": "US CAJURU",
     "distances": {
       "PB": "12,6",
       "VD": "12,9",
@@ -105,7 +112,8 @@
     }
   },
   {
-    "us_name": "SM",
+    "us_id": "SM",
+    "us_name": "US SÃO MIGUEL",
     "distances": {
       "PB": "13,5",
       "VD": "24",
@@ -120,7 +128,8 @@
     }
   },
   {
-    "us_name": "SJ",
+    "us_id": "SJ",
+    "us_name": "US SÃO JOÃO DEL REY",
     "distances": {
       "PB": "24",
       "VD": "25,1",
@@ -135,7 +144,8 @@
     }
   },
   {
-    "us_name": "MS",
+    "us_id": "MS",
+    "us_name": "US MORADIAS SANTA RITA",
     "distances": {
       "PB": "22,3",
       "VD": "32,4",
