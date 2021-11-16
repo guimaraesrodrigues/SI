@@ -8,15 +8,17 @@ import pandas as pd
 
 from fitness import Fitness
 
-MAX_GEN = 20  # Quantidade máxima de gerações
+MAX_GEN = 30  # Quantidade máxima de gerações
 MUTATION_RATE = 0.01  # Porcentagem da taxa de mutação
 POP_SIZE = 100  # Tamanho da população (conjunto de rotas possíveis)
 ELITE_SIZE = 20  # Tamanho da elite  (melhores cromossomos para a próxima geração)
 
 
 # Retorna uma rota aleatoria com base na lista de unidades de saúde
+# Iniciando e terminando no CEMEPAR
 def create_route(us_list):
-    route = random.sample(us_list, len(us_list))
+    route = [us_list[0], *random.sample(us_list[1:-1], len(us_list) - 2), us_list[0]]
+
     return route
 
 
@@ -25,6 +27,7 @@ def initial_population(us_list):
 
     for i in range(0, POP_SIZE):
         population.append(create_route(us_list))
+
     return population
 
 
@@ -35,21 +38,21 @@ def rank_routes(population):
     return sorted(fitness_results.items(), key=operator.itemgetter(1), reverse=True)
 
 
-def selection(pop_ranked):
+def selection(population_ranked):
     selection_results = []
 
     # roulette wheel selection
-    df = pd.DataFrame(np.array(pop_ranked), columns=["Index", "Fitness"])
+    df = pd.DataFrame(np.array(population_ranked), columns=["Index", "Fitness"])
     df['cum_sum'] = df.Fitness.cumsum()  # Return the cumulative sum
     df['cum_perc'] = 100 * df.cum_sum / df.Fitness.sum()
 
     for i in range(0, ELITE_SIZE):
-        selection_results.append(pop_ranked[i][0])
-    for i in range(0, len(pop_ranked) - ELITE_SIZE):
+        selection_results.append(population_ranked[i][0])
+    for i in range(0, len(population_ranked) - ELITE_SIZE):
         pick = 100 * random.random()
-        for i in range(0, len(pop_ranked)):
+        for i in range(0, len(population_ranked)):
             if pick <= df.iat[i, 3]:
-                selection_results.append(pop_ranked[i][0])
+                selection_results.append(population_ranked[i][0])
                 break
     return selection_results
 
@@ -129,29 +132,31 @@ def get_next_generation(current_gen):
 
 
 def genetic_algorithm(initial_pop):
+    progress = []
     population = initial_population(initial_pop)
-    print("Distancia inicial: " + str(1 / rank_routes(population)[0][1]))
+    initial_distance = 1 / rank_routes(population)[0][1]
+
+    progress.append(initial_distance)
+    print("Distancia inicial: " + str(initial_distance))
 
     for i in range(0, MAX_GEN):
         population = get_next_generation(population)
+        progress.append(1 / rank_routes(population)[0][1])
 
-    print("Distancia final: " + str(1 / rank_routes(population)[0][1]))
+    final_distance = str(1 / rank_routes(population)[0][1])
+    print("Distancia final: " + final_distance)
+
     best_route_index = rank_routes(population)[0][0]
     best_route = population[best_route_index]
+
+    plot_results(progress)
+
     return best_route
 
 
-def plot_genetic_algorithm(population):
-    pop = initial_population(population)
-    progress = []
-    progress.append(1 / rank_routes(pop)[0][1])
-
-    for i in range(0, MAX_GEN):
-        pop = get_next_generation(pop)
-        progress.append(1 / rank_routes(pop)[0][1])
-
+def plot_results(progress):
     plt.plot(progress)
-    plt.ylabel('Distância')
+    plt.ylabel('Distância (km)')
     plt.xlabel('Geração')
     plt.show()
 
@@ -164,11 +169,9 @@ def main():
 
     best_route = genetic_algorithm(data)
 
-    print("melhor rota: ")
-    for index in range(len(best_route)):
-        print(best_route[index]['us_name'])
-
-    plot_genetic_algorithm(data)
+    # print("melhor rota: ")
+    # for index in range(len(best_route)):
+    #     print(best_route[index]['us_name'])
 
 
 if __name__ == '__main__':

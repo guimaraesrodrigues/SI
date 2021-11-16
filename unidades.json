@@ -1,8 +1,26 @@
 [
   {
+    "us_id": "CM",
+    "us_name": "CEMEPAR",
+    "distances": {
+      "CM": "0",
+      "PB": "10,3",
+      "VD": "11,7",
+      "BP": "9,4",
+      "SQ": "9,2",
+      "FL": "7,2",
+      "WM": "8,0",
+      "CA": "3,6",
+      "SM": "12,3",
+      "SJ": "14,8",
+      "MS": "20,1"
+    }
+  },
+  {
     "us_id": "PB",
     "us_name": "PAVILHÃO DE EVENTOS DO PARQUE BARIGUI",
     "distances": {
+      "CM": "10,3",
       "PB": 0,
       "VD": "10,7",
       "BP": "5,1",
@@ -19,6 +37,7 @@
     "us_id": "VD",
     "us_name": "US VILA DIANA",
     "distances": {
+      "CM": "11,7",
       "PB": "10,7",
       "VD": 0,
       "BP": "7,2",
@@ -35,6 +54,7 @@
     "us_id": "BP",
     "us_name": "US BOM PASTOR",
     "distances": {
+      "CM": "9,4",
       "PB": "5,1",
       "VD": "7,2",
       "BP": 0,
@@ -51,6 +71,7 @@
     "us_id": "SQ",
     "us_name": "US SANTA QUITÉRIA I",
     "distances": {
+      "CM": "9,2",
       "PB": "6,3",
       "VD": "15,2",
       "BP": "9,6",
@@ -67,6 +88,7 @@
     "us_id": "FL",
     "us_name": "US FANNY-LINDOIA",
     "distances": {
+      "CM": "7,2",
       "PB": "9,9",
       "VD": "15",
       "BP": "9,4",
@@ -83,6 +105,7 @@
     "us_id": "WM",
     "us_name": "US WALDEMAR MONASTIER",
     "distances": {
+      "CM": "8,0",
       "PB": "15,7",
       "VD": "17,9",
       "BP": "14,5",
@@ -99,6 +122,7 @@
     "us_id": "CA",
     "us_name": "US CAJURU",
     "distances": {
+      "CM": "3,6",
       "PB": "12,6",
       "VD": "12,9",
       "BP": "10,9",
@@ -115,6 +139,7 @@
     "us_id": "SM",
     "us_name": "US SÃO MIGUEL",
     "distances": {
+      "CM": "12,3",
       "PB": "13,5",
       "VD": "24",
       "BP": "12,7",
@@ -131,6 +156,7 @@
     "us_id": "SJ",
     "us_name": "US SÃO JOÃO DEL REY",
     "distances": {
+      "CM": "14,8",
       "PB": "24",
       "VD": "25,1",
       "BP": "17,4",
@@ -147,6 +173,7 @@
     "us_id": "MS",
     "us_name": "US MORADIAS SANTA RITA",
     "distances": {
+      "CM": "20,1",
       "PB": "22,3",
       "VD": "32,4",
       "BP": "25,5",
