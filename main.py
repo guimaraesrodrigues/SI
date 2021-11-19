@@ -8,16 +8,15 @@ import pandas as pd
 
 from fitness import Fitness
 
-MAX_GEN = 50  # Quantidade máxima de gerações
-MUTATION_RATE = 0.01  # Porcentagem da taxa de mutação
-POP_SIZE = 100  # Tamanho da população (conjunto de rotas possíveis)
-ELITE_SIZE = 20  # Tamanho da elite  (melhores cromossomos para a próxima geração)
+MAX_GEN = 40  # Quantidade máxima de gerações
+MUTATION_RATE = 0.02  # Porcentagem da taxa de mutação
+POP_SIZE = 50  # Tamanho da população (conjunto de rotas(individuos))
+ELITE_SIZE = 5  # Tamanho da elite  (melhores cromossomos/individuos para a próxima geração)
 
 
 # Retorna uma rota aleatoria com base na lista de unidades de saúde
 # Iniciando e terminando no CEMEPAR
 def create_route(us_list):
-    # , us_list[0] at the end
     route = [us_list[0], *random.sample(us_list[1:], len(us_list) - 1)]
 
     return route
@@ -90,8 +89,6 @@ def breed(parent1, parent2):
 
     return child_parent2[:start_gene] + child_parent1 + child_parent2[start_gene:]
 
-    # return child_parent1 + child_parent2
-
 
 def breed_population(matingpool):
     children = []
@@ -129,37 +126,35 @@ def mutate_population(population):
     for ind in range(0, len(population)):
         mutated_ind = mutate(population[ind])
         mutated_pop.append(mutated_ind)
+
     return mutated_pop
 
 
 def get_next_generation(current_gen):
     population_ranked = rank_routes(current_gen)
-
     selection_results = selection(population_ranked)
-
     matingpool = mating_pool(current_gen, selection_results)
-
     children = breed_population(matingpool)
-
     next_generation = mutate_population(children)
-
     return next_generation
 
 
 def genetic_algorithm(initial_pop):
     progress = []
     population = initial_population(initial_pop)
-    initial_distance = 1 / rank_routes(population)[0][1]
+    best_route = rank_routes(population)[0]
+    initial_distance = 1 / best_route[1]
 
     progress.append(initial_distance)
-    print("Distancia inicial: " + str(initial_distance))
+    print("Distancia inicial: " + str(initial_distance) + " km")
 
     for i in range(0, MAX_GEN):
         population = get_next_generation(population)
-        progress.append(1 / rank_routes(population)[0][1])
+        best_route = rank_routes(population)[0]
+        progress.append(1 / best_route[1])
 
     final_distance = str(1 / rank_routes(population)[0][1])
-    print("Distancia final: " + final_distance)
+    print("Distancia final: " + final_distance + " km")
 
     best_route_index = rank_routes(population)[0][0]
     best_route = population[best_route_index]
@@ -186,7 +181,7 @@ def main():
 
     print("melhor rota: ")
     for index in range(len(best_route)):
-        print(best_route[index]['us_name'])
+        print(index, " - ", best_route[index]['us_name'])
 
 
 if __name__ == '__main__':
