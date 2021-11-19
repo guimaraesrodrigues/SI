@@ -8,7 +8,7 @@ import pandas as pd
 
 from fitness import Fitness
 
-MAX_GEN = 30  # Quantidade máxima de gerações
+MAX_GEN = 50  # Quantidade máxima de gerações
 MUTATION_RATE = 0.01  # Porcentagem da taxa de mutação
 POP_SIZE = 100  # Tamanho da população (conjunto de rotas possíveis)
 ELITE_SIZE = 20  # Tamanho da elite  (melhores cromossomos para a próxima geração)
@@ -17,7 +17,8 @@ ELITE_SIZE = 20  # Tamanho da elite  (melhores cromossomos para a próxima gera�
 # Retorna uma rota aleatoria com base na lista de unidades de saúde
 # Iniciando e terminando no CEMEPAR
 def create_route(us_list):
-    route = [us_list[0], *random.sample(us_list[1:-1], len(us_list) - 2), us_list[0]]
+    # , us_list[0] at the end
+    route = [us_list[0], *random.sample(us_list[1:], len(us_list) - 1)]
 
     return route
 
@@ -31,23 +32,27 @@ def initial_population(us_list):
     return population
 
 
+# retorna uma lista de rotas com fitness rankeados
 def rank_routes(population):
     fitness_results = {}
     for i in range(0, len(population)):
         fitness_results[i] = Fitness(population[i]).route_fitness()
+
     return sorted(fitness_results.items(), key=operator.itemgetter(1), reverse=True)
 
 
+# Seleciona os pais com a tecnica roulette wheel selection
 def selection(population_ranked):
     selection_results = []
 
-    # roulette wheel selection
     df = pd.DataFrame(np.array(population_ranked), columns=["Index", "Fitness"])
     df['cum_sum'] = df.Fitness.cumsum()  # Return the cumulative sum
     df['cum_perc'] = 100 * df.cum_sum / df.Fitness.sum()
 
+    # Seleciona os n melhores, onde n é ELITE_SIZE
     for i in range(0, ELITE_SIZE):
         selection_results.append(population_ranked[i][0])
+
     for i in range(0, len(population_ranked) - ELITE_SIZE):
         pick = 100 * random.random()
         for i in range(0, len(population_ranked)):
@@ -62,28 +67,30 @@ def mating_pool(population, selection_results):
     for i in range(0, len(selection_results)):
         index = selection_results[i]
         matingpool.append(population[index])
+
     return matingpool
 
 
-# crossover
+# ordered crossover
 def breed(parent1, parent2):
-    child = []
-    child_p1 = []
-    child_p2 = []
+    child_parent1 = []
+    # exclui posicao 0 pois o ponto de partida não pode ser alterado na ordem do caminho
+    allowed_values = list(range(1, len(parent1)))
 
-    gene_a = int(random.random() * len(parent1))
-    gene_b = int(random.random() * len(parent1))
+    gene_a = random.choice(allowed_values)
+    gene_b = random.choice(allowed_values)
 
     start_gene = min(gene_a, gene_b)
     end_gene = max(gene_a, gene_b)
 
     for i in range(start_gene, end_gene):
-        child_p1.append(parent1[i])
+        child_parent1.append(parent1[i])
 
-    child_p2 = [item for item in parent2 if item not in child_p1]
+    child_parent2 = [item for item in parent2 if item not in child_parent1]
 
-    child = child_p1 + child_p2
-    return child
+    return child_parent2[:start_gene] + child_parent1 + child_parent2[start_gene:]
+
+    # return child_parent1 + child_parent2
 
 
 def breed_population(matingpool):
@@ -101,9 +108,12 @@ def breed_population(matingpool):
 
 
 def mutate(individual):
-    for swapped in range(len(individual)):
+    for swapped in range(1, len(individual)):
         if random.random() < MUTATION_RATE:
-            swap_with = int(random.random() * len(individual))
+            swap_with = random.choice(list(range(1, len(individual))))
+
+            if individual[swap_with]["us_id"] == "CM":
+                print("swap_with", individual[swap_with])
 
             us_1 = individual[swapped]
             us_2 = individual[swap_with]
@@ -123,11 +133,16 @@ def mutate_population(population):
 
 
 def get_next_generation(current_gen):
-    pop_ranked = rank_routes(current_gen)
-    selection_results = selection(pop_ranked)
+    population_ranked = rank_routes(current_gen)
+
+    selection_results = selection(population_ranked)
+
     matingpool = mating_pool(current_gen, selection_results)
+
     children = breed_population(matingpool)
+
     next_generation = mutate_population(children)
+
     return next_generation
 
 
@@ -169,9 +184,9 @@ def main():
 
     best_route = genetic_algorithm(data)
 
-    # print("melhor rota: ")
-    # for index in range(len(best_route)):
-    #     print(best_route[index]['us_name'])
+    print("melhor rota: ")
+    for index in range(len(best_route)):
+        print(best_route[index]['us_name'])
 
 
 if __name__ == '__main__':
