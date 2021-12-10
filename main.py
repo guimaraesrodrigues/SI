@@ -5,13 +5,15 @@ import json
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import statistics
 
 from fitness import Fitness
 
+MAX_ITERATIONS = 1  # Quantidade de execuções do AG
 MAX_GEN = 40  # Quantidade máxima de gerações
 MUTATION_RATE = 0.02  # Porcentagem da taxa de mutação
 POP_SIZE = 50  # Tamanho da população (conjunto de rotas(individuos))
-ELITE_SIZE = 5  # Tamanho da elite  (melhores cromossomos/individuos para a próxima geração)
+ELITE_SIZE = 30  # Tamanho da elite  (melhores cromossomos/individuos para a próxima geração)
 
 
 # Retorna uma rota aleatoria com base na lista de unidades de saúde
@@ -146,29 +148,42 @@ def genetic_algorithm(initial_pop):
     initial_distance = 1 / best_route[1]
 
     progress.append(initial_distance)
-    print("Distancia inicial: " + str(initial_distance) + " km")
+    # print("Distancia inicial: " + str(initial_distance) + " km")
+    min_distance = initial_distance
+    generation_min_dist = 0
 
-    for i in range(0, MAX_GEN):
+    for i in range(1, MAX_GEN):
         population = get_next_generation(population)
         best_route = rank_routes(population)[0]
-        progress.append(1 / best_route[1])
+        total_distance = 1 / best_route[1]
+
+        if total_distance < min_distance:
+            min_distance = total_distance
+            generation_min_dist = i
+
+        progress.append(total_distance)
 
     final_distance = str(1 / rank_routes(population)[0][1])
-    print("Distancia final: " + final_distance + " km")
+    # print("Distancia final: " + final_distance + " km")
 
     best_route_index = rank_routes(population)[0][0]
     best_route = population[best_route_index]
 
-    plot_results(progress)
-
-    return best_route
+    return best_route, progress, generation_min_dist
 
 
-def plot_results(progress):
+def plot_results(progress, title='Distâncias mínimas em cada geração'):
     plt.plot(progress)
     plt.ylabel('Distância (km)')
     plt.xlabel('Geração')
+    plt.title(title)
     plt.show()
+
+
+def show_route(route):
+    print("melhor rota: ")
+    for index in range(len(route)):
+        print(index, " - ", route[index]['us_name'])
 
 
 def main():
@@ -176,12 +191,33 @@ def main():
     # salva na memoria
     f = open('unidades.json', )
     data = json.load(f)
+    generations_result = []
+    progress_list = []
 
-    best_route = genetic_algorithm(data)
+    for i in range(MAX_ITERATIONS):
+        best_route, progress,  generation_min_dist = genetic_algorithm(data)
+        progress_list.append(progress)
+        generations_result.append(generation_min_dist)
 
-    print("melhor rota: ")
-    for index in range(len(best_route)):
-        print(index, " - ", best_route[index]['us_name'])
+    print("Geração média: ")
+    print(round(statistics.mean(generations_result)))
+
+    print("Mediana: ")
+    median = round(statistics.median(generations_result))
+    print(median)
+
+    print("Menor qtd de gerações: ")
+    minimum = min(generations_result)
+    print(minimum)
+
+    print("Maior qtd de gerações: ")
+    maximum = max(generations_result)
+    print(maximum)
+
+    # show_route(best_route)
+    plot_results(progress_list[generations_result.index(median)], 'Mediana')
+    plot_results(progress_list[generations_result.index(minimum)], 'Menor qtd. de gerações')
+    plot_results(progress_list[generations_result.index(maximum)], 'Maior qtd. de gerações')
 
 
 if __name__ == '__main__':
